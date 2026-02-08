@@ -1,0 +1,30 @@
+# ============================================
+# CITYMATE Infrastructure - .gitignore
+# ============================================
+
+# Fichiers sensibles
+.env
+
+# Volumes Docker (données locales)
+postgres-data/
+user-db-data/
+city-db-data/
+community-db-data/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml

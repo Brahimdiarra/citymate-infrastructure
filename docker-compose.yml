@@ -1,0 +1,180 @@
+version: '3.8'
+
+# ============================================
+# CITYMATE - Docker Compose Configuration
+# ============================================
+# Ce fichier orchestre tous les micro-services du projet CityMate
+# 
+# Services inclus :
+# - 3 bases de données PostgreSQL (user_db, city_db, community_db)
+# - 3 APIs Spring Boot (user-api, city-api, community-api)
+# 
+# Pour démarrer : docker-compose up -d
+# Pour arrêter : docker-compose down
+# ============================================
+
+services:
+  
+  # ============================================
+  # BASE DE DONNÉES : USER DB
+  # ============================================
+  user-db:
+    image: postgres:15-alpine
+    container_name: citymate-user-db
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: ${USER_DB_USER:-citymate_user}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD:-user_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+      - ./postgres/init-user-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - citymate-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER:-citymate_user} -d user_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # BASE DE DONNÉES : CITY DB (avec PostGIS)
+  # ============================================
+  city-db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: citymate-city-db
+    environment:
+      POSTGRES_DB: city_db
+      POSTGRES_USER: ${CITY_DB_USER:-citymate_city}
+      POSTGRES_PASSWORD: ${CITY_DB_PASSWORD:-city_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - city-db-data:/var/lib/postgresql/data
+      - ./postgres/init-city-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - citymate-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CITY_DB_USER:-citymate_city} -d city_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # BASE DE DONNÉES : COMMUNITY DB
+  # ============================================
+  community-db:
+    image: postgres:15-alpine
+    container_name: citymate-community-db
+    environment:
+      POSTGRES_DB: community_db
+      POSTGRES_USER: ${COMMUNITY_DB_USER:-citymate_community}
+      POSTGRES_PASSWORD: ${COMMUNITY_DB_PASSWORD:-community_password}
+    ports:
+      - "5434:5432"
+    volumes:
+      - community-db-data:/var/lib/postgresql/data
+      - ./postgres/init-community-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - citymate-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COMMUNITY_DB_USER:-citymate_community} -d community_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # API : USER API (Port 8081)
+  # ============================================
+  user-api:
+    build:
+      context: ../citymate-user-api
+      dockerfile: Dockerfile
+    container_name: citymate-user-api
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/user_db
+      SPRING_DATASOURCE_USERNAME: ${USER_DB_USER:-citymate_user}
+      SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD:-user_password}
+      JWT_SECRET: ${JWT_SECRET:-your_secret_key_change_in_production}
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8081:8081"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    networks:
+      - citymate-network
+    restart: unless-stopped
+
+  # ============================================
+  # API : CITY API (Port 8082)
+  # ============================================
+  city-api:
+    build:
+      context: ../citymate-city-api
+      dockerfile: Dockerfile
+    container_name: citymate-city-api
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://city-db:5432/city_db
+      SPRING_DATASOURCE_USERNAME: ${CITY_DB_USER:-citymate_city}
+      SPRING_DATASOURCE_PASSWORD: ${CITY_DB_PASSWORD:-city_password}
+      USER_API_URL: http://user-api:8081
+    ports:
+      - "8082:8082"
+    depends_on:
+      city-db:
+        condition: service_healthy
+      user-api:
+        condition: service_started
+    networks:
+      - citymate-network
+    restart: unless-stopped
+
+  # ============================================
+  # API : COMMUNITY API (Port 8083)
+  # ============================================
+  community-api:
+    build:
+      context: ../citymate-community-api
+      dockerfile: Dockerfile
+    container_name: citymate-community-api
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://community-db:5432/community_db
+      SPRING_DATASOURCE_USERNAME: ${COMMUNITY_DB_USER:-citymate_community}
+      SPRING_DATASOURCE_PASSWORD: ${COMMUNITY_DB_PASSWORD:-community_password}
+      USER_API_URL: http://user-api:8081
+      FIREBASE_CONFIG_PATH: /app/config/firebase-config.json
+    ports:
+      - "8083:8083"
+    depends_on:
+      community-db:
+        condition: service_healthy
+      user-api:
+        condition: service_started
+    networks:
+      - citymate-network
+    restart: unless-stopped
+
+# ============================================
+# VOLUMES PERSISTANTS
+# ============================================
+# Les données des bases de données sont sauvegardées ici
+volumes:
+  user-db-data:
+    driver: local
+  city-db-data:
+    driver: local
+  community-db-data:
+    driver: local
+
+# ============================================
+# RÉSEAU INTERNE
+# ============================================
+# Tous les services communiquent via ce réseau
+networks:
+  citymate-network:
+    driver: bridge
