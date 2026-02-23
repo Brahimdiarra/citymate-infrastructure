@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 # ============================================
 # CITYMATE - Docker Compose Configuration
@@ -89,7 +89,7 @@ services:
   # ============================================
   user-api:
     build:
-      context: ../citymate-user-api
+      context: ../city-Mate/user-api
       dockerfile: Dockerfile
     container_name: citymate-user-api
     environment:
