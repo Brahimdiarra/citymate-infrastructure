@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 # ============================================
 # CITYMATE - Docker Compose Configuration
@@ -74,7 +74,7 @@ services:
     ports:
       - "5434:5432"
     volumes:
-      - community-db-data:/var/lib/postgresql/data
+      - community-db-data:/var/lib/postgresql/datadocker-compose down -v
       - ./postgres/init-community-db.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - citymate-network
@@ -84,12 +84,14 @@ services:
       timeout: 5s
       retries: 5
 
+
+
   # ============================================
   # API : USER API (Port 8081)
   # ============================================
   user-api:
     build:
-      context: ../citymate-user-api
+      context: ../user-api
       dockerfile: Dockerfile
     container_name: citymate-user-api
     environment:
@@ -108,56 +110,28 @@ services:
       - citymate-network
     restart: unless-stopped
 
-  # ============================================
-  # API : CITY API (Port 8082)
-  # ============================================
-  city-api:
+
+    # ============================================
+    # API GATEWAY (Port 8090)
+    # ============================================
+  api-gateway:
     build:
-      context: ../citymate-city-api
+      context: ../api-gateway
       dockerfile: Dockerfile
-    container_name: citymate-city-api
+    container_name: citymate-api-gateway
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://city-db:5432/city_db
-      SPRING_DATASOURCE_USERNAME: ${CITY_DB_USER:-citymate_city}
-      SPRING_DATASOURCE_PASSWORD: ${CITY_DB_PASSWORD:-city_password}
-      USER_API_URL: http://user-api:8081
+      JWT_SECRET: ${JWT_SECRET:-VotreCleSecreteTresFortePourLaProductionChangezMoiAbsolument123456789}
     ports:
-      - "8082:8082"
+      - "8090:8090"
     depends_on:
-      city-db:
-        condition: service_healthy
       user-api:
         condition: service_started
     networks:
       - citymate-network
     restart: unless-stopped
 
-  # ============================================
-  # API : COMMUNITY API (Port 8083)
-  # ============================================
-  community-api:
-    build:
-      context: ../citymate-community-api
-      dockerfile: Dockerfile
-    container_name: citymate-community-api
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://community-db:5432/community_db
-      SPRING_DATASOURCE_USERNAME: ${COMMUNITY_DB_USER:-citymate_community}
-      SPRING_DATASOURCE_PASSWORD: ${COMMUNITY_DB_PASSWORD:-community_password}
-      USER_API_URL: http://user-api:8081
-      FIREBASE_CONFIG_PATH: /app/config/firebase-config.json
-    ports:
-      - "8083:8083"
-    depends_on:
-      community-db:
-        condition: service_healthy
-      user-api:
-        condition: service_started
-    networks:
-      - citymate-network
-    restart: unless-stopped
+
 
 # ============================================
 # VOLUMES PERSISTANTS
