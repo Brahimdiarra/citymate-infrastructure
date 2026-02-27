@@ -98,7 +98,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/user_db
       SPRING_DATASOURCE_USERNAME: ${USER_DB_USER:-citymate_user}
       SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD:-user_password}
-      JWT_SECRET: ${JWT_SECRET:-Cm2K9#xP7!vQ2@wR4$eT6^yU8&iO0*aS1-dF3+gH5_jL9(kM2)nB4}
+      JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRATION: 900000
       JWT_REFRESH_EXPIRATION: 86400000
     ports:
@@ -120,7 +120,7 @@ services:
     container_name: citymate-api-gateway
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      JWT_SECRET: ${JWT_SECRET:-Cm2K9#xP7!vQ2@wR4$eT6^yU8&iO0*aS1-dF3+gH5_jL9(kM2)nB4}
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
